@@ -1,0 +1,64 @@
+name: Build Windows EXE
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Electron
+        run: |
+          npm init -y
+          npm install electron electron-builder
+
+      - name: Create launcher
+        shell: pwsh
+        run: |
+          @'
+          const { app, BrowserWindow } = require('electron');
+          app.whenReady().then(() => {
+            const win = new BrowserWindow({
+              width: 1280,
+              height: 720,
+              autoHideMenuBar: true
+            });
+            win.loadFile('MiniCS_Winter_2v2_smoke_gray_dense.html');
+          });
+          '@ | Set-Content main.js
+
+          @'
+          {
+            "name": "retry-strike",
+            "version": "1.0.0",
+            "main": "main.js",
+            "scripts": {
+              "build": "electron-builder --win portable"
+            },
+            "build": {
+              "appId": "com.retrystrike.game",
+              "files": [
+                "main.js",
+                "MiniCS_Winter_2v2_smoke_gray_dense.html"
+              ],
+              "win": {
+                "target": "portable"
+              }
+            }
+          }
+          '@ | Set-Content package.json
+
+      - name: Build EXE
+        run: npm run build
+
+      - name: Upload EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: Retry-Strike-EXE
+          path: dist/*.exe
